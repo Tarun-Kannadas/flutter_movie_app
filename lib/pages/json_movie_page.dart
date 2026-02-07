@@ -4,9 +4,12 @@ import 'package:d_movie_app/models/popular_movie.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'login_page.dart';
 
 class JsonMoviePage extends StatefulWidget {
-  const JsonMoviePage({super.key, required String title});
+  const JsonMoviePage({super.key});
 
   @override
   State<JsonMoviePage> createState() => _JsonMoviePageState();
@@ -27,6 +30,14 @@ class _JsonMoviePageState extends State<JsonMoviePage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Popular Movies"),
+        actions: [
+          IconButton(
+              onPressed: (){
+                _logout();
+              },
+              icon: const Icon(Icons.logout)
+          )
+        ]
       ),
       body: ListView.builder(
           itemCount: _popularMoviesList.length,
@@ -58,5 +69,19 @@ class _JsonMoviePageState extends State<JsonMoviePage> {
     final moviesMap = jsonMap["items"] as List<dynamic>;
     _popularMoviesList = moviesMap.map((movieJson) => PopularMovie.fromJson(movieJson)).toList();
     setState(() {});
+  }
+
+  void _logout() async{
+    final pref = await SharedPreferences.getInstance();
+    final isDeleted = await pref.setBool("IS_AUTHENTICATED", false);
+
+    if (isDeleted) {
+      if (mounted)
+      {
+        Navigator.pushReplacement((context), MaterialPageRoute(builder: (context){
+          return const LoginPage();
+        }));
+      }
+    }
   }
 }
