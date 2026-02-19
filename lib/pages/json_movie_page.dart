@@ -28,17 +28,6 @@ class _JsonMoviePageState extends State<JsonMoviePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Popular Movies"),
-        actions: [
-          IconButton(
-              onPressed: (){
-                _logout();
-              },
-              icon: const Icon(Icons.logout)
-          )
-        ]
-      ),
       body: ListView.builder(
           itemCount: _popularMoviesList.length,
           itemBuilder: (context, index){
@@ -69,19 +58,5 @@ class _JsonMoviePageState extends State<JsonMoviePage> {
     final moviesMap = jsonMap["items"] as List<dynamic>;
     _popularMoviesList = moviesMap.map((movieJson) => PopularMovie.fromJson(movieJson)).toList();
     setState(() {});
-  }
-
-  void _logout() async{
-    final pref = await SharedPreferences.getInstance();
-    final isDeleted = await pref.setBool("IS_AUTHENTICATED", false);
-
-    if (isDeleted) {
-      if (mounted)
-      {
-        Navigator.pushReplacement((context), MaterialPageRoute(builder: (context){
-          return const LoginPage();
-        }));
-      }
-    }
   }
 }

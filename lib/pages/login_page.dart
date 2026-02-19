@@ -1,4 +1,6 @@
+import 'package:d_movie_app/pages/dashboard_page.dart';
 import 'package:d_movie_app/pages/json_movie_page.dart';
+import 'package:d_movie_app/pages/top_rated_movies_page.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -91,7 +93,7 @@ class _LoginPageState extends State<LoginPage> {
     {
       if(!mounted) return;
       Navigator.pushReplacement((context), MaterialPageRoute(builder: (context){
-        return const JsonMoviePage();
+        return const DashboardPage();
       }));
     }
   }
