@@ -12,12 +12,11 @@ class FavouriteMoviesPage extends StatefulWidget {
 }
 
 class _FavouriteMoviesPageState extends State<FavouriteMoviesPage> {
-
   late Box<TopRatedMovieHive> _movieBox;
   late List<TopRatedMovieHive> _movieHiveList;
 
   @override
-  void initState(){
+  void initState() {
     super.initState();
 
     _movieBox = Hive.box("top-rated-movies");
@@ -63,12 +62,50 @@ class _FavouriteMoviesPageState extends State<FavouriteMoviesPage> {
             itemBuilder: (ctx, index) {
               final movie = _movieHiveList[index];
               return ListTile(
+                leading: Image.network(
+                  movie.image ?? "Unavailable",
+                  height: 50,
+                  width: 50,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) {
+                    return Container(
+                      width: 50,
+                      height: 50,
+                      color: Colors.black12,
+                    );
+                  },
+                ),
                 title: Text(movie.title ?? 'Unavailable'),
                 subtitle: Text(movie.year ?? "Unavailable"),
-              );            },
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.star,
+                      color: Colors.amber,
+                    ),
+                    Text(movie.imdbRating ?? "Unavailable"),
+                    IconButton(
+                      onPressed: () {
+                        _deleteMovie(movie);
+                      },
+                      icon: Icon(Icons.delete_outline),
+                      color: Colors.red,
+                    ),
+                  ],
+                ),
+              );
+            },
           );
         },
       ),
     );
+  }
+
+  void _deleteMovie(TopRatedMovieHive movie) {
+    setState(() {
+      movie.delete();
+      _movieHiveList = _movieBox.values.toList();
+    });
   }
 }

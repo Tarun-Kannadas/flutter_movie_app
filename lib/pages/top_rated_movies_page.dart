@@ -1,30 +1,30 @@
-import 'package:d_movie_app/cubits/top_rated_movie_cubit.dart';
-import 'package:d_movie_app/cubits/top_rated_movies_ui_state.dart';
-import 'package:d_movie_app/models/top_rated_movie_hive.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hive/hive.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+
+import '../cubits/top_rated_movie_cubit.dart';
+import '../cubits/top_rated_movies_ui_state.dart';
+import '../models/top_rated_movie_hive.dart';
 
 class TopRatedMoviesPage extends StatefulWidget {
-  const TopRatedMoviesPage ({super.key});
+  const TopRatedMoviesPage({super.key});
 
   @override
   State<TopRatedMoviesPage> createState() => _TopRatedMoviesPageState();
 }
 
 class _TopRatedMoviesPageState extends State<TopRatedMoviesPage> {
-  late Box _movieBox;
+  late Box<TopRatedMovieHive> _movieBox;
+  late List<TopRatedMovieHive> _favoriteMovieList;
 
   @override
-  void initState()
-  {
+  void initState() {
     super.initState();
 
     context.read<TopRatedMovieCubit>().fetchTopRatedMovies();
 
-    _movieBox = Hive.box<TopRatedMovieHive>("top-rated-movies");
+    _movieBox = Hive.box<TopRatedMovieHive>('top-rated-movies');
+    _favoriteMovieList = _movieBox.values.toList();
   }
 
   @override
@@ -33,84 +33,120 @@ class _TopRatedMoviesPageState extends State<TopRatedMoviesPage> {
       body: BlocBuilder<TopRatedMovieCubit, TopRatedMoviesUiState>(
         builder: (ctx, state) {
           return switch (state) {
-            TopRatedMoviesUiStateLoading() => const Center(child: CircularProgressIndicator()),
+            TopRatedMoviesUiStateLoading() => const Center(
+              child: CircularProgressIndicator(),
+            ),
 
-            TopRatedMoviesUiStateSuccess(movieList: var movies) => ListView.builder(
-              itemCount: movies.length,
+            TopRatedMoviesUiStateSuccess() => ListView.builder(
+              itemCount: state.movieList.length,
               itemBuilder: (ctx, index) {
-                final movie = movies[index];
-                final String key = movie.title; // Our unique identifier
+                final movie = state.movieList[index];
 
-                // 1. Wrap the tile in a ValueListenableBuilder
-                return ValueListenableBuilder(
-                  valueListenable: _movieBox.listenable(), // 2. Listen to changes in the box
-                  builder: (context, Box box, _) {
+                final matchedMovie = _favoriteMovieList
+                    .cast<TopRatedMovieHive?>()
+                    .firstWhere(
+                      (favoriteMovie) => favoriteMovie?.title == movie.title,
+                      orElse: () => null,
+                    );
 
-                    // 3. Check if THIS specific movie is in the database
-                    final isFavorite = box.containsKey(key);
+                final bool isFavorite = matchedMovie != null;
 
-                    return ListTile(
-                      // The background color will be our only visual indicator now
-                      tileColor: isFavorite ? Colors.deepPurple.withOpacity(0.15) : null,
-                      title: Text(movie.title),
-                      subtitle: Text("Year: ${movie.year}"),
+                void toggleFavoriteStatus() {
+                  final movieHive = TopRatedMovieHive(
+                    title: movie.title,
+                    year: movie.year,
+                    imdbRating: movie.imdbRating,
+                    image: movie.image,
+                  );
 
-                      // Put the rating back in the trailing position!
-                      trailing: Text(
-                        "⭐ ${movie.imdbRating}",
+                  if (isFavorite) {
+                    _deleteMovieHive(movieHive);
+                  } else {
+                    _saveMovieHive(movieHive);
+                  }
+                }
+
+                return ListTile(
+                  leading: Image.network(
+                    movie.image,
+                    height: 50,
+                    width: 50,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) {
+                      return Container(
+                        width: 50,
+                        height: 50,
+                        color: Colors.black12,
+                      );
+                    },
+                  ),
+                  title: Text(movie.title),
+                  subtitle: Text(movie.year),
+
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.star, color: Colors.amber),
+                      Text(
+                        "${movie.imdbRating}",
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
                         ),
                       ),
-
-                      leading: ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: Image.network(
-                          movie.image,
-                          fit: BoxFit.cover,
-                          height: 50,
-                          width: 50,
-                          errorBuilder: (_, __, ___) => Container(
-                            width: 50,
-                            height: 50,
-                            color: Colors.grey[300],
-                            child: const Icon(Icons.movie),
-                          ),
+                      IconButton(
+                        onPressed: toggleFavoriteStatus,
+                        icon: Icon(
+                          isFavorite ? Icons.favorite : Icons.favorite_border,
+                          color: isFavorite ? Colors.red : Colors.grey,
                         ),
                       ),
-                      onTap: () {
-                        ScaffoldMessenger.of(context).clearSnackBars();
-
-                        if (isFavorite) {
-                          box.delete(key);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('${movie.title} removed!'), duration: const Duration(seconds: 1)),
-                          );
-                        } else {
-                          final movieHive = TopRatedMovieHive(
-                            title: movie.title,
-                            year: movie.year,
-                            image: movie.image,
-                            imdbRating: movie.imdbRating,
-                          );
-                          box.put(key, movieHive);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('${movie.title} favorited!'), duration: const Duration(seconds: 1)),
-                          );
-                        }
-                      },
-                    );
-                  },
+                    ],
+                  ),
                 );
               },
             ),
-
-            TopRatedMoviesUiStateFailure() => const Center(child: Text('Failed to load movies')),
-            _ => const SizedBox.shrink(),
+            TopRatedMoviesUiStateFailure() => const Text('Failure'),
+            _ => const CircularProgressIndicator(),
           };
         },
       ),
     );
+  }
+
+  void _saveMovieHive(TopRatedMovieHive movieHive) {
+    _movieBox.put(movieHive.title, movieHive);
+
+    setState(() {
+      _favoriteMovieList = _movieBox.values.toList();
+    });
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${movieHive.title} added!'),
+          duration: const Duration(seconds: 1),
+        ),
+      );
+    }
+  }
+
+  void _deleteMovieHive(TopRatedMovieHive movieHive) {
+    _movieBox.delete(movieHive.title);
+
+    setState(() {
+      _favoriteMovieList = _movieBox.values.toList();
+    });
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${movieHive.title} removed!'),
+          duration: const Duration(seconds: 1),
+        ),
+      );
+    }
   }
 }
